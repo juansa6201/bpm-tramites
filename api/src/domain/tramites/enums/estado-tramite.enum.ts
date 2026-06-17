@@ -1,0 +1,13 @@
+/** Estados de un trámite. Espejo del enum de Prisma, pero independiente. */
+export enum EstadoTramite {
+  BORRADOR = 'BORRADOR',
+  INGRESADO = 'INGRESADO',
+  EN_REVISION = 'EN_REVISION',
+  OBSERVADO = 'OBSERVADO',
+  ESPERANDO_EXTERNO = 'ESPERANDO_EXTERNO',
+  ESPERANDO_INTERNO = 'ESPERANDO_INTERNO',
+  APROBADO = 'APROBADO',
+  RECHAZADO = 'RECHAZADO',
+  CANCELADO = 'CANCELADO',
+  CERRADO = 'CERRADO',
+}

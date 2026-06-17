@@ -9,3 +9,5 @@ export const PASSWORD_HASHER = Symbol('PasswordHasher');
 export const TOKEN_SERVICE = Symbol('TokenService');
 export const INTERNAL_TOKEN_VERIFIER = Symbol('InternalTokenVerifier');
 export const INTERNAL_TOKEN_ISSUER = Symbol('InternalTokenIssuer');
+export const UNIT_OF_WORK = Symbol('UnitOfWork');
+export const TIPO_TRAMITE_REPOSITORY = Symbol('TipoTramiteRepository');
