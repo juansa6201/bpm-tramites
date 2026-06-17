@@ -1,4 +1,0 @@
-# Backend NestJS (Clean Architecture + DDD).
-# El scaffold completo se genera en una pieza posterior:
-#   src/domain · src/application · src/infrastructure · src/presentation
-# + prisma/ · Dockerfile (multi-stage) · package.json · tsconfig · jest config
