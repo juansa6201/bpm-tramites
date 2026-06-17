@@ -2,6 +2,7 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus } from '@nestjs/commo
 import { FastifyReply } from 'fastify';
 import {
   BusinessRuleError,
+  ConflictError,
   DomainError,
   ForbiddenError,
   NotFoundError,
@@ -24,6 +25,8 @@ export class DomainExceptionFilter implements ExceptionFilter {
       status = HttpStatus.UNAUTHORIZED; // 401
     else if (error instanceof ForbiddenError)
       status = HttpStatus.FORBIDDEN; // 403
+    else if (error instanceof ConflictError)
+      status = HttpStatus.CONFLICT; // 409
     else if (error instanceof BusinessRuleError) status = HttpStatus.UNPROCESSABLE_ENTITY; // 422
 
     reply.status(status).send({

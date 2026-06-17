@@ -20,3 +20,6 @@ export abstract class UnauthorizedError extends DomainError {}
 
 /** Autenticado pero sin permisos → HTTP 403. */
 export abstract class ForbiddenError extends DomainError {}
+
+/** Conflicto de concurrencia (bloqueo optimista) → HTTP 409. */
+export abstract class ConflictError extends DomainError {}
