@@ -1,4 +1,0 @@
-# Frontend Next.js + React 19 + TypeScript + MUI.
-# El scaffold completo se genera en una pieza posterior:
-#   app/interno · app/externo (layouts diferenciados)
-# + Formik/Yup · React Context · Vitest · Dockerfile (multi-stage)
