@@ -1,0 +1,299 @@
+// ============================================================================
+// Prisma schema — BPM de Trámites de Oficina
+// ----------------------------------------------------------------------------
+// NOTA de arquitectura: este schema vive en la capa de INFRAESTRUCTURA.
+// El dominio NO conoce Prisma; los repositorios (interfaces en domain) se
+// implementan sobre este client y mapean a entidades de dominio.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+// Distingue la identidad del actor en asociaciones polimórficas
+// (un actor puede ser interno o externo según el circuito).
+enum TipoUsuario {
+  INTERNO
+  EXTERNO
+}
+
+enum RolInterno {
+  ADMIN
+  MESA_ENTRADA
+  OPERADOR
+  SUPERVISOR
+  AUDITOR
+}
+
+enum EstadoUsuarioExterno {
+  PENDIENTE_VERIFICACION
+  ACTIVO
+  BLOQUEADO
+}
+
+enum OrigenTramite {
+  INTERNO_INTERNO
+  INTERNO_EXTERNO
+  EXTERNO_INTERNO
+}
+
+enum EstadoTramite {
+  BORRADOR
+  INGRESADO
+  EN_REVISION
+  OBSERVADO
+  ESPERANDO_EXTERNO
+  ESPERANDO_INTERNO
+  APROBADO
+  RECHAZADO
+  CANCELADO
+  CERRADO
+}
+
+enum PrioridadTramite {
+  BAJA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum AccionMovimiento {
+  CREAR
+  INGRESAR
+  TOMAR
+  ASIGNAR
+  DERIVAR
+  OBSERVAR
+  RESPONDER_OBSERVACION
+  SOLICITAR_INTERVENCION_EXTERNA
+  RESPONDER_INTERVENCION_EXTERNA
+  APROBAR
+  RECHAZAR
+  CANCELAR
+  CERRAR
+}
+
+enum Visibilidad {
+  INTERNA
+  EXTERNA
+  TODOS
+}
+
+// ============================================================================
+// USUARIOS
+// ============================================================================
+
+model UsuarioInterno {
+  id            String     @id @default(uuid())
+  nombre        String
+  email         String     @unique
+  azureObjectId String     @unique
+  rol           RolInterno
+  activo        Boolean    @default(true)
+
+  // "área" del enunciado modelada como relación (no string libre)
+  areaId String
+  area   Area   @relation(fields: [areaId], references: [id])
+
+  // Trámites donde este interno es el usuario asignado
+  tramitesAsignados Tramite[] @relation("TramiteAsignado")
+
+  @@index([areaId])
+}
+
+model UsuarioExterno {
+  id           String               @id @default(uuid())
+  nombre       String
+  email        String               @unique
+  documento    String               @unique
+  organizacion String?
+  estado       EstadoUsuarioExterno @default(PENDIENTE_VERIFICACION)
+  fechaAlta    DateTime             @default(now())
+
+  // Auth externa (email + password / magic link). Opcional para soportar
+  // alta por magic link/OTP sin password.
+  passwordHash String?
+
+  // Trámites en los que participa este externo
+  tramites Tramite[]
+}
+
+// ============================================================================
+// CONFIGURACIÓN: ÁREA y TIPO DE TRÁMITE
+// ============================================================================
+
+model Area {
+  id     String  @id @default(uuid())
+  nombre String
+  codigo String  @unique
+  activa Boolean @default(true)
+
+  // Relaciones inversas
+  usuarios         UsuarioInterno[]
+  tramitesActuales Tramite[]           @relation("TramiteAreaActual")
+  tiposTramite     TipoTramite[]       @relation("TipoTramiteAreaInicial")
+  movimientosDesde MovimientoTramite[] @relation("MovimientoAreaAnterior")
+  movimientosHacia MovimientoTramite[] @relation("MovimientoAreaNueva")
+}
+
+model TipoTramite {
+  id                   String  @id @default(uuid())
+  codigo               String  @unique
+  nombre               String
+  descripcion          String?
+  activo               Boolean @default(true)
+  requiereExterno      Boolean @default(false)
+  permiteInicioExterno Boolean @default(false)
+  slaHoras             Int
+
+  // Área en la que inicia el trámite de este tipo (opcional)
+  areaInicialId String?
+  areaInicial   Area?   @relation("TipoTramiteAreaInicial", fields: [areaInicialId], references: [id])
+
+  tramites Tramite[]
+
+  @@index([areaInicialId])
+}
+
+// ============================================================================
+// AGREGADO PRINCIPAL: TRÁMITE
+// ============================================================================
+
+model Tramite {
+  id          String           @id @default(uuid())
+  numero      String           @unique
+  titulo      String
+  descripcion String
+  origen      OrigenTramite
+  estado      EstadoTramite    @default(BORRADOR)
+  prioridad   PrioridadTramite @default(MEDIA)
+
+  // Tipo de trámite (requerido)
+  tipoTramiteId String
+  tipoTramite   TipoTramite @relation(fields: [tipoTramiteId], references: [id])
+
+  // Área actual del trámite (opcional: un BORRADOR puede no tenerla aún)
+  areaActualId String?
+  areaActual   Area?   @relation("TramiteAreaActual", fields: [areaActualId], references: [id])
+
+  // Interno asignado (opcional: puede no estar tomado todavía)
+  usuarioAsignadoId String?
+  usuarioAsignado   UsuarioInterno? @relation("TramiteAsignado", fields: [usuarioAsignadoId], references: [id])
+
+  // Externo participante (opcional: solo en circuitos con externo)
+  usuarioExternoId String?
+  usuarioExterno   UsuarioExterno? @relation(fields: [usuarioExternoId], references: [id])
+
+  // Creador (polimórfico: interno o externo según creadoPorTipo)
+  creadoPorTipo TipoUsuario
+  creadoPorId   String
+
+  // Control de concurrencia optimista (regla: no dos "tomar" simultáneos)
+  version Int @default(0)
+
+  fechaCreacion      DateTime  @default(now())
+  fechaActualizacion DateTime  @updatedAt
+  fechaCierre        DateTime?
+
+  // Composición del agregado
+  movimientos MovimientoTramite[]
+  documentos  DocumentoTramite[]
+  comentarios ComentarioTramite[]
+
+  @@index([estado])
+  @@index([origen])
+  @@index([areaActualId])
+  @@index([usuarioAsignadoId])
+  @@index([usuarioExternoId])
+  @@index([tipoTramiteId])
+}
+
+// ============================================================================
+// AUDITORÍA: MOVIMIENTO DEL WORKFLOW
+// ============================================================================
+
+model MovimientoTramite {
+  id String @id @default(uuid())
+
+  tramiteId String
+  tramite   Tramite @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
+
+  // estadoAnterior es null en la creación (acción CREAR)
+  estadoAnterior EstadoTramite?
+  estadoNuevo    EstadoTramite
+
+  // Áreas de la transición (opcionales: no toda acción cambia de área)
+  areaAnteriorId String?
+  areaAnterior   Area?   @relation("MovimientoAreaAnterior", fields: [areaAnteriorId], references: [id])
+  areaNuevaId    String?
+  areaNueva      Area?   @relation("MovimientoAreaNueva", fields: [areaNuevaId], references: [id])
+
+  // Actor polimórfico que ejecutó la acción
+  usuarioTipo TipoUsuario
+  usuarioId   String
+
+  accion     AccionMovimiento
+  comentario String?
+  fecha      DateTime         @default(now())
+
+  @@index([tramiteId])
+  @@index([tramiteId, fecha])
+}
+
+// ============================================================================
+// DOCUMENTOS
+// ============================================================================
+
+model DocumentoTramite {
+  id String @id @default(uuid())
+
+  tramiteId String
+  tramite   Tramite @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
+
+  nombreArchivo String
+  mimeType      String
+  size          Int
+  storageKey    String
+
+  // Visibilidad para respetar la regla de permisos sobre documentos
+  visibilidad Visibilidad @default(TODOS)
+
+  // Actor polimórfico que subió el documento
+  subidoPorTipo TipoUsuario
+  subidoPorId   String
+
+  fechaCarga DateTime @default(now())
+
+  @@index([tramiteId])
+}
+
+// ============================================================================
+// COMENTARIOS
+// ============================================================================
+
+model ComentarioTramite {
+  id String @id @default(uuid())
+
+  tramiteId String
+  tramite   Tramite @relation(fields: [tramiteId], references: [id], onDelete: Cascade)
+
+  mensaje     String
+  visibilidad Visibilidad
+
+  // Actor polimórfico autor del comentario
+  autorTipo TipoUsuario
+  autorId   String
+
+  fecha DateTime @default(now())
+
+  @@index([tramiteId])
+}
