@@ -5,6 +5,7 @@ import { OrigenTramite } from '../../../domain/tramites/enums/origen-tramite.enu
 import { PrioridadTramite } from '../../../domain/tramites/enums/prioridad-tramite.enum';
 import { AccionMovimiento } from '../../../domain/tramites/enums/accion-movimiento.enum';
 import { TipoUsuario } from '../../../domain/usuarios/enums/tipo-usuario.enum';
+import { SlaPolicy } from '../../../domain/tramites/services/sla-policy';
 
 /**
  * Vistas de SALIDA (objetos planos, serializables).
@@ -35,6 +36,16 @@ export interface TramiteView {
   fechaCierre: Date | null;
 }
 
+/**
+ * Ítem de la bandeja: el trámite + el estado de su SLA, ya resuelto en el server
+ * (única fuente de verdad, espejo del dashboard). `fechaVencimiento` es null si
+ * no se pudo determinar el SLA del tipo.
+ */
+export interface TramiteListItemView extends TramiteView {
+  fechaVencimiento: Date | null;
+  slaVencido: boolean;
+}
+
 /** Un ítem de la timeline de auditoría del trámite. */
 export interface MovimientoView {
   id: string;
@@ -49,9 +60,11 @@ export interface MovimientoView {
   fecha: Date;
 }
 
-/** Detalle del trámite con su timeline embebida. */
+/** Detalle del trámite con su timeline embebida y las acciones que el actor puede ejecutar. */
 export interface TramiteDetalleView extends TramiteView {
   movimientos: MovimientoView[];
+  /** Acciones de workflow habilitadas para este actor en el estado actual (guía de UI). */
+  accionesPermitidas: AccionMovimiento[];
 }
 
 export function toTramiteView(t: Tramite): TramiteView {
@@ -76,6 +89,22 @@ export function toTramiteView(t: Tramite): TramiteView {
   };
 }
 
+/**
+ * Construye el ítem de bandeja resolviendo el SLA. `slaHoras` puede venir
+ * undefined (tipo no encontrado): en ese caso no hay vencimiento que mostrar.
+ */
+export function toTramiteListItemView(
+  t: Tramite,
+  slaHoras: number | undefined,
+  ahora: Date,
+): TramiteListItemView {
+  const fechaVencimiento =
+    slaHoras !== undefined ? SlaPolicy.fechaVencimiento(t.fechaCreacion, slaHoras) : null;
+  const slaVencido =
+    fechaVencimiento !== null && SlaPolicy.estaVencido(t.estado, fechaVencimiento, ahora);
+  return { ...toTramiteView(t), fechaVencimiento, slaVencido };
+}
+
 export function toMovimientoView(m: MovimientoTramite): MovimientoView {
   return {
     id: m.id,
@@ -94,6 +123,11 @@ export function toMovimientoView(m: MovimientoTramite): MovimientoView {
 export function toTramiteDetalleView(
   t: Tramite,
   movimientos: MovimientoTramite[],
+  accionesPermitidas: AccionMovimiento[],
 ): TramiteDetalleView {
-  return { ...toTramiteView(t), movimientos: movimientos.map(toMovimientoView) };
+  return {
+    ...toTramiteView(t),
+    movimientos: movimientos.map(toMovimientoView),
+    accionesPermitidas,
+  };
 }

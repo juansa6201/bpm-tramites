@@ -13,6 +13,7 @@ import { ListarAreasUseCase } from '../../application/use-cases/config/listar-ar
 import { CrearAreaUseCase } from '../../application/use-cases/config/crear-area.use-case';
 import { ActualizarAreaUseCase } from '../../application/use-cases/config/actualizar-area.use-case';
 import { ListarTiposTramiteUseCase } from '../../application/use-cases/config/listar-tipos-tramite.use-case';
+import { ListarTiposIniciablesExternoUseCase } from '../../application/use-cases/config/listar-tipos-iniciables-externo.use-case';
 import { CrearTipoTramiteUseCase } from '../../application/use-cases/config/crear-tipo-tramite.use-case';
 import { ActualizarTipoTramiteUseCase } from '../../application/use-cases/config/actualizar-tipo-tramite.use-case';
 
@@ -44,6 +45,11 @@ import { ActualizarTipoTramiteUseCase } from '../../application/use-cases/config
     {
       provide: ListarTiposTramiteUseCase,
       useFactory: (tipos: TipoTramiteRepository) => new ListarTiposTramiteUseCase(tipos),
+      inject: [TIPO_TRAMITE_REPOSITORY],
+    },
+    {
+      provide: ListarTiposIniciablesExternoUseCase,
+      useFactory: (tipos: TipoTramiteRepository) => new ListarTiposIniciablesExternoUseCase(tipos),
       inject: [TIPO_TRAMITE_REPOSITORY],
     },
     {

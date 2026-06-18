@@ -18,3 +18,4 @@ export const COMENTARIO_TRAMITE_REPOSITORY = Symbol('ComentarioTramiteRepository
 export const DOCUMENTO_TRAMITE_REPOSITORY = Symbol('DocumentoTramiteRepository');
 export const DASHBOARD_REPOSITORY = Symbol('DashboardRepository');
 export const STORAGE_PORT = Symbol('StoragePort');
+export const CLOCK = Symbol('Clock');

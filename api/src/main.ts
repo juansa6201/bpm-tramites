@@ -21,6 +21,14 @@ async function bootstrap() {
   // Todas las rutas quedan bajo /api (ej: /api/health, /api/auth/...).
   app.setGlobalPrefix('api');
 
+  // CORS: el portal Next.js corre en otro origen (:3000) y el navegador hace un
+  // preflight OPTIONS antes de cada request con Authorization/JSON. Origen
+  // configurable por env; default a localhost:3000 para desarrollo.
+  app.enableCors({
+    origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
+    credentials: true,
+  });
+
   // Validación de DTOs de request (whitelist + transform).
   app.useGlobalPipes(
     new ValidationPipe({

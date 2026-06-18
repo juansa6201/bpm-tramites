@@ -1,6 +1,7 @@
 import { VerTramiteUseCase } from './ver-tramite.use-case';
 import { TramiteRepository } from '../../../domain/repositories/tramite.repository';
 import { MovimientoTramiteRepository } from '../../../domain/repositories/movimiento-tramite.repository';
+import { WorkflowStateMachine } from '../../../domain/services/workflow-state-machine';
 import { Tramite, TramiteProps } from '../../../domain/tramites/entities/tramite.entity';
 import { MovimientoTramite } from '../../../domain/tramites/entities/movimiento-tramite.entity';
 import { EstadoTramite } from '../../../domain/tramites/enums/estado-tramite.enum';
@@ -76,6 +77,7 @@ function build(t: Tramite | null, movs: MovimientoTramite[] = []) {
   const uc = new VerTramiteUseCase(
     new FakeTramiteRepo(t) as unknown as TramiteRepository,
     movRepo as unknown as MovimientoTramiteRepository,
+    new WorkflowStateMachine(),
   );
   return { uc, movRepo };
 }
@@ -123,6 +125,28 @@ describe('VerTramiteUseCase', () => {
     const { uc } = build(tramite({ areaActualId: 'otra' }), [movimiento()]);
     const res = await uc.execute({ tramiteId: 't1', actor: interno(RolInterno.ADMIN, 'areaA') });
     expect(res.id).toBe('t1');
+  });
+
+  it('incluye accionesPermitidas del actor (admin en EN_REVISION: observar/aprobar/rechazar/cancelar)', async () => {
+    const { uc } = build(tramite(), [movimiento()]);
+    const res = await uc.execute({ tramiteId: 't1', actor: interno(RolInterno.ADMIN, 'areaA') });
+    expect(res.accionesPermitidas).toEqual(
+      expect.arrayContaining([
+        AccionMovimiento.OBSERVAR,
+        AccionMovimiento.APROBAR,
+        AccionMovimiento.RECHAZAR,
+        AccionMovimiento.CANCELAR,
+      ]),
+    );
+    // No filtra acciones externas ni de otros estados.
+    expect(res.accionesPermitidas).not.toContain(AccionMovimiento.RESPONDER_OBSERVACION);
+    expect(res.accionesPermitidas).not.toContain(AccionMovimiento.TOMAR);
+  });
+
+  it('un externo participante en EN_REVISION no tiene acciones (solo lectura)', async () => {
+    const { uc } = build(tramite(), [movimiento()]);
+    const res = await uc.execute({ tramiteId: 't1', actor: externo('ext1') });
+    expect(res.accionesPermitidas).toEqual([]);
   });
 
   it('el detalle es un objeto plano (sin "props", serializable)', async () => {

@@ -17,6 +17,9 @@ export interface TransitionInput {
   rolUsuario?: RolInterno;
 }
 
+/** Input para consultar las acciones disponibles (TransitionInput sin la acción). */
+export type AccionesPermitidasInput = Omit<TransitionInput, 'accion'>;
+
 export type MotivoRechazo = 'ESTADO_INVALIDO' | 'TIPO_USUARIO_INVALIDO' | 'ROL_INVALIDO';
 
 export interface TransitionResult {
@@ -203,5 +206,31 @@ export class WorkflowStateMachine {
 
     // El tipo coincide pero el rol no está autorizado (o falta el rol).
     return { permitida: false, motivo: 'ROL_INVALIDO' };
+  }
+
+  /**
+   * Acciones que el actor PUEDE ejecutar desde el estado actual (para mostrar
+   * solo esos botones en la UI). Misma lógica que `evaluar` pero acumulando
+   * todas las acciones válidas. El server igual revalida al ejecutar: esto es
+   * una guía de UI, no la autorización real.
+   */
+  accionesPermitidas(input: AccionesPermitidasInput): AccionMovimiento[] {
+    const acciones = new Set<AccionMovimiento>();
+    for (const regla of REGLAS) {
+      if (regla.origen !== input.origen || regla.desde !== input.estadoActual) continue;
+      if (regla.tipoUsuario !== input.tipoUsuario) continue;
+      if (regla.tipoUsuario === TipoUsuario.EXTERNO) {
+        acciones.add(regla.accion);
+        continue;
+      }
+      if (
+        regla.rolesPermitidos &&
+        input.rolUsuario !== undefined &&
+        regla.rolesPermitidos.includes(input.rolUsuario)
+      ) {
+        acciones.add(regla.accion);
+      }
+    }
+    return [...acciones];
   }
 }

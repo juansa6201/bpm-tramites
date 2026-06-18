@@ -3,8 +3,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UsuarioExterno } from '../../../domain/usuarios/entities/usuario-externo.entity';
 import {
   CrearUsuarioExternoData,
+  ListarUsuariosExternosFiltros,
   UsuarioExternoRepository,
 } from '../../../domain/usuarios/repositories/usuario-externo.repository';
+import { EstadoUsuarioExterno } from '../../../domain/usuarios/enums/estado-usuario-externo.enum';
 import { UsuarioExternoMapper } from '../mappers/usuario-externo.mapper';
 
 /**
@@ -42,5 +44,13 @@ export class PrismaUsuarioExternoRepository implements UsuarioExternoRepository 
       },
     });
     return UsuarioExternoMapper.toDomain(row);
+  }
+
+  async list(filtros: ListarUsuariosExternosFiltros = {}): Promise<UsuarioExterno[]> {
+    const rows = await this.prisma.usuarioExterno.findMany({
+      where: filtros.soloActivos ? { estado: EstadoUsuarioExterno.ACTIVO } : {},
+      orderBy: { nombre: 'asc' },
+    });
+    return rows.map(UsuarioExternoMapper.toDomain);
   }
 }

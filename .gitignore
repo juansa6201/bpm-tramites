@@ -38,3 +38,6 @@ pnpm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Uploaded documents (local StoragePort, runtime artifacts)
+api/storage/

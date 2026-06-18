@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { IsDate, IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 import { EstadoTramite } from '../../../domain/tramites/enums/estado-tramite.enum';
 import { OrigenTramite } from '../../../domain/tramites/enums/origen-tramite.enum';
 import { PrioridadTramite } from '../../../domain/tramites/enums/prioridad-tramite.enum';
@@ -33,6 +33,18 @@ export class ListarTramitesQuery {
   @IsOptional()
   @IsUUID()
   usuarioExternoId?: string;
+
+  // Rango sobre fechaCreacion. `@Type(() => Date)` convierte el string ISO de la
+  // query a Date antes de validar (ej: '2026-06-01' o un ISO completo).
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  creadoDesde?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  creadoHasta?: Date;
 
   @IsOptional()
   @Type(() => Number)

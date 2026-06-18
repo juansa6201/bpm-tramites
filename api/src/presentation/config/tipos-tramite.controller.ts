@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ListarTiposTramiteUseCase } from '../../application/use-cases/config/listar-tipos-tramite.use-case';
+import { ListarTiposIniciablesExternoUseCase } from '../../application/use-cases/config/listar-tipos-iniciables-externo.use-case';
 import { CrearTipoTramiteUseCase } from '../../application/use-cases/config/crear-tipo-tramite.use-case';
 import { ActualizarTipoTramiteUseCase } from '../../application/use-cases/config/actualizar-tipo-tramite.use-case';
 import { WorkflowAuthGuard } from '../guards/workflow-auth.guard';
@@ -25,6 +26,7 @@ import { ActualizarTipoTramiteRequest, CrearTipoTramiteRequest } from './dto/tip
 export class TiposTramiteController {
   constructor(
     private readonly listarUC: ListarTiposTramiteUseCase,
+    private readonly listarIniciablesUC: ListarTiposIniciablesExternoUseCase,
     private readonly crearUC: CrearTipoTramiteUseCase,
     private readonly actualizarUC: ActualizarTipoTramiteUseCase,
   ) {}
@@ -33,6 +35,14 @@ export class TiposTramiteController {
   @HttpCode(HttpStatus.OK)
   listar(@CurrentUser() u: CurrentUserData) {
     return this.listarUC.execute({ actor: actorFromUser(u) });
+  }
+
+  // Catálogo acotado para el portal externo: solo tipos activos con inicio
+  // externo. Ruta estática → no choca con otras (este controller no tiene @Get(':id')).
+  @Get('iniciables-externos')
+  @HttpCode(HttpStatus.OK)
+  listarIniciablesExterno() {
+    return this.listarIniciablesUC.execute();
   }
 
   @Post()

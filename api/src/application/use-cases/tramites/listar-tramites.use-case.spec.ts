@@ -4,7 +4,10 @@ import {
   TramiteFilters,
   TramiteRepository,
 } from '../../../domain/repositories/tramite.repository';
+import { TipoTramiteRepository } from '../../../domain/repositories/tipo-tramite.repository';
+import { TipoTramite } from '../../../domain/tramites/entities/tipo-tramite.entity';
 import { PaginatedResult } from '../../../domain/shared/pagination';
+import { Clock } from '../../ports/clock.port';
 import { Tramite, TramiteProps } from '../../../domain/tramites/entities/tramite.entity';
 import { EstadoTramite } from '../../../domain/tramites/enums/estado-tramite.enum';
 import { OrigenTramite } from '../../../domain/tramites/enums/origen-tramite.enum';
@@ -71,6 +74,27 @@ class FakeTramiteRepository implements TramiteRepository {
   }
 }
 
+/** Repo de tipos falso: list() expone solo id + slaHoras (lo único que usa el UC). */
+class FakeTipoTramiteRepository implements TipoTramiteRepository {
+  tipos: TipoTramite[] = [{ id: 'tt1', slaHoras: 48 } as unknown as TipoTramite];
+
+  list(): Promise<TipoTramite[]> {
+    return Promise.resolve(this.tipos);
+  }
+  findById(): Promise<TipoTramite | null> {
+    throw new Error('no usado');
+  }
+  findByCodigo(): Promise<TipoTramite | null> {
+    throw new Error('no usado');
+  }
+  create(): Promise<TipoTramite> {
+    throw new Error('no usado');
+  }
+  update(): Promise<TipoTramite> {
+    throw new Error('no usado');
+  }
+}
+
 const externo = (id: string): Actor => ({ tipo: TipoUsuario.EXTERNO, id });
 const interno = (rol: RolInterno, areaId: string): Actor => ({
   tipo: TipoUsuario.INTERNO,
@@ -81,11 +105,15 @@ const interno = (rol: RolInterno, areaId: string): Actor => ({
 
 describe('ListarTramitesUseCase', () => {
   let repo: FakeTramiteRepository;
+  let tipos: FakeTipoTramiteRepository;
   let uc: ListarTramitesUseCase;
+  // Reloj fijo MUY posterior a la creación (2026-01-01) → el ítem queda vencido.
+  const clock: Clock = { now: () => new Date('2026-06-01T00:00:00.000Z') };
 
   beforeEach(() => {
     repo = new FakeTramiteRepository();
-    uc = new ListarTramitesUseCase(repo);
+    tipos = new FakeTipoTramiteRepository();
+    uc = new ListarTramitesUseCase(repo, tipos, clock);
   });
 
   it('un externo solo ve los suyos: fuerza usuarioExternoId aunque pida otro', async () => {
@@ -158,5 +186,30 @@ describe('ListarTramitesUseCase', () => {
       estado: EstadoTramite.INGRESADO,
     });
     expect(JSON.parse(JSON.stringify(item))).toMatchObject({ id: 't1', numero: 'EXT-2026-00001' });
+  });
+
+  it('resuelve el SLA: fechaVencimiento = creación + slaHoras y slaVencido con el reloj', async () => {
+    const res = await uc.execute({ actor: interno(RolInterno.ADMIN, 'areaA'), filtros: {} });
+    const item = res.items[0];
+    // creación 2026-01-01 + 48h = 2026-01-03; ahora (reloj) = 2026-06-01 → vencido.
+    expect(item.fechaVencimiento).toEqual(new Date('2026-01-03T00:00:00.000Z'));
+    expect(item.slaVencido).toBe(true);
+  });
+
+  it('si no hay slaHoras para el tipo, no calcula vencimiento (null / no vencido)', async () => {
+    tipos.tipos = []; // ningún tipo → el Map no tiene tt1
+    const res = await uc.execute({ actor: interno(RolInterno.ADMIN, 'areaA'), filtros: {} });
+    expect(res.items[0].fechaVencimiento).toBeNull();
+    expect(res.items[0].slaVencido).toBe(false);
+  });
+
+  it('el filtro de fecha (creadoDesde/creadoHasta) se pasa tal cual al repo', async () => {
+    const desde = new Date('2026-01-01T00:00:00.000Z');
+    const hasta = new Date('2026-02-01T23:59:59.999Z');
+    await uc.execute({
+      actor: interno(RolInterno.ADMIN, 'areaA'),
+      filtros: { creadoDesde: desde, creadoHasta: hasta },
+    });
+    expect(repo.ultimosFiltros).toMatchObject({ creadoDesde: desde, creadoHasta: hasta });
   });
 });

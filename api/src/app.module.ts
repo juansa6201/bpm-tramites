@@ -7,6 +7,7 @@ import { TramitesModule } from './presentation/tramites/tramites.module';
 import { ConfiguracionModule } from './presentation/config/configuracion.module';
 import { DashboardModule } from './presentation/dashboard/dashboard.module';
 import { DocumentosModule } from './presentation/documentos/documentos.module';
+import { UsuariosModule } from './presentation/usuarios/usuarios.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { DocumentosModule } from './presentation/documentos/documentos.module';
     ConfiguracionModule,
     DashboardModule,
     DocumentosModule,
+    UsuariosModule,
   ],
   controllers: [AppController],
   providers: [AppService],
