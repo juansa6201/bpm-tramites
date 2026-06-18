@@ -1,18 +1,34 @@
-# Build mínimo del frontend (Next.js + React 19 + MUI).
-# Más adelante lo convertimos en multi-stage con output standalone.
-FROM node:20-alpine
+# syntax=docker/dockerfile:1
+# Frontend Next.js (App Router) — multi-stage con output standalone.
 
+# ------------------------------ builder ------------------------------
+FROM node:20-slim AS builder
 WORKDIR /app
 
-# Instalamos dependencias primero (mejor cacheo de capas)
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
-# Copiamos el código y generamos el build de producción
+# NEXT_PUBLIC_* se inlinea en build: es la URL que el NAVEGADOR usa para la API
+# (host, no la red interna de Docker). Llega como build arg desde compose.
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 COPY . .
 RUN npm run build
 
-EXPOSE 3000
+# ------------------------------ runner -------------------------------
+FROM node:20-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 
-# Arranca el server de Next en modo producción
-CMD ["npm", "start"]
+# Salida standalone: server.js + node_modules mínimos + estáticos.
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+RUN chown -R node:node /app
+USER node
+
+EXPOSE 3000
+CMD ["node", "server.js"]
