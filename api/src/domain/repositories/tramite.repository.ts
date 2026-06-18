@@ -44,6 +44,12 @@ export interface TramiteRepository {
 
   /** Devuelve el mayor número con ese prefijo (para numerar), o null si no hay. */
   ultimoNumeroConPrefijo(prefijo: string): Promise<string | null>;
+
+  /** Borrado REAL (hard) del trámite y su agregado (cascade). Solo para borradores. */
+  delete(id: string): Promise<void>;
+
+  /** Soft-delete: marca el trámite como eliminado, conservando la fila. */
+  softDelete(id: string): Promise<void>;
   /**
    * Persiste los cambios del trámite con bloqueo OPTIMISTA por `version`.
    * Debe fallar si la versión en base ya no coincide (concurrencia).

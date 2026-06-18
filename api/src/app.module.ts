@@ -4,9 +4,19 @@ import { AppService } from './app.service';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { AuthModule } from './presentation/auth/auth.module';
 import { TramitesModule } from './presentation/tramites/tramites.module';
+import { ConfiguracionModule } from './presentation/config/configuracion.module';
+import { DashboardModule } from './presentation/dashboard/dashboard.module';
+import { DocumentosModule } from './presentation/documentos/documentos.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, TramitesModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    TramitesModule,
+    ConfiguracionModule,
+    DashboardModule,
+    DocumentosModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

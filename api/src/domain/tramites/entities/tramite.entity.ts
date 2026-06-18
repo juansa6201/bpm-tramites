@@ -106,6 +106,11 @@ export class Tramite {
     return this.props.areaActualId === areaId;
   }
 
+  /** ¿Lo creó este actor? (para permisos de edición/borrado del borrador). */
+  fueCreadoPor(tipo: TipoUsuario, usuarioId: string): boolean {
+    return this.props.creadoPorTipo === tipo && this.props.creadoPorId === usuarioId;
+  }
+
   // ------------------------- Mutaciones controladas -------------------------
   // Las usan los casos de uso de workflow tras validar la transición.
 
@@ -127,5 +132,20 @@ export class Tramite {
 
   registrarCierre(fecha: Date): void {
     this.props.fechaCierre = fecha;
+  }
+
+  // ----------------------- Edición de datos (PUT) ---------------------------
+  // Solo cambian datos descriptivos, no el estado del workflow.
+
+  editarTitulo(titulo: string): void {
+    this.props.titulo = titulo;
+  }
+
+  editarDescripcion(descripcion: string): void {
+    this.props.descripcion = descripcion;
+  }
+
+  cambiarPrioridad(prioridad: PrioridadTramite): void {
+    this.props.prioridad = prioridad;
   }
 }

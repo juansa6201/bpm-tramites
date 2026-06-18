@@ -2,6 +2,10 @@ import { TransitionResult } from '../../../domain/services/workflow-state-machin
 import { AccionMovimiento } from '../../../domain/tramites/enums/accion-movimiento.enum';
 import { EstadoTramite } from '../../../domain/tramites/enums/estado-tramite.enum';
 import { Tramite } from '../../../domain/tramites/entities/tramite.entity';
+import {
+  TramiteVisibilidadPolicy,
+  ActorVisibilidad,
+} from '../../../domain/tramites/services/tramite-visibilidad.service';
 import { TipoUsuario } from '../../../domain/usuarios/enums/tipo-usuario.enum';
 import { RolInterno } from '../../../domain/usuarios/enums/rol-interno.enum';
 import { Actor } from '../../dto/actor';
@@ -47,5 +51,25 @@ export function autorizarActor(tramite: Tramite, actor: Actor): void {
     }
   } else if (!tramite.participaElExterno(actor.id)) {
     throw new ExternoNoParticipaError();
+  }
+}
+
+/** Traduce el Actor de aplicación al actor de la política de visibilidad. */
+export function actorVisibilidad(actor: Actor): ActorVisibilidad {
+  return actor.tipo === TipoUsuario.INTERNO
+    ? { tipo: actor.tipo, id: actor.id, rol: actor.rol, areaId: actor.areaId }
+    : { tipo: actor.tipo, id: actor.id };
+}
+
+/**
+ * Autorización de LECTURA (ver el trámite y su contenido). A diferencia de
+ * autorizarActor (que habilita ejecutar acciones), acá manda la política de
+ * visibilidad: admin y auditor ven todo, el resto su área, el externo lo suyo.
+ */
+export function autorizarVisibilidad(tramite: Tramite, actor: Actor): void {
+  if (!TramiteVisibilidadPolicy.puedeVer(tramite, actorVisibilidad(actor))) {
+    throw actor.tipo === TipoUsuario.EXTERNO
+      ? new ExternoNoParticipaError()
+      : new SinPermisoSobreAreaError();
   }
 }

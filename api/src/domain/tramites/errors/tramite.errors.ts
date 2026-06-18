@@ -42,6 +42,48 @@ export class ExternoNoParticipaError extends ForbiddenError {
   }
 }
 
+/** Un externo intenta marcar contenido como INTERNA (reservado a internos) → 403. */
+export class VisibilidadNoPermitidaError extends ForbiddenError {
+  constructor() {
+    super('No podés marcar este contenido como interno');
+  }
+}
+
+/** Documento inexistente (o ajeno al trámite) → 404. */
+export class DocumentoNoEncontradoError extends NotFoundError {
+  constructor(id: string) {
+    super(`Documento ${id} no encontrado`);
+  }
+}
+
+/** El actor no puede eliminar este documento (no lo subió ni es admin) → 403. */
+export class SinPermisoSobreDocumentoError extends ForbiddenError {
+  constructor() {
+    super('No tenés permisos para eliminar este documento');
+  }
+}
+
+/** No se puede editar un trámite en estado terminal (cerrado/cancelado) → 422. */
+export class TramiteNoEditableError extends BusinessRuleError {
+  constructor() {
+    super('No se puede editar un trámite cerrado o cancelado');
+  }
+}
+
+/** Título/descripción solo se editan mientras el trámite es BORRADOR → 422. */
+export class CamposSoloEditablesEnBorradorError extends BusinessRuleError {
+  constructor() {
+    super('El título y la descripción solo se editan mientras el trámite es un borrador');
+  }
+}
+
+/** El actor no puede eliminar este trámite (no es su borrador ni es admin) → 403. */
+export class SinPermisoParaEliminarTramiteError extends ForbiddenError {
+  constructor() {
+    super('No tenés permisos para eliminar este trámite');
+  }
+}
+
 /** Otra operación modificó el trámite primero (bloqueo optimista) → 409. */
 export class ConflictoDeConcurrenciaError extends ConflictError {
   constructor() {
