@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  HUSKY: '0' # no instalar git hooks en CI
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run lint # eslint . (cubre api y web con el flat config raíz)
+      - run: npm run format:check # prettier --check
+
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate # el build (tsc) tipa contra el cliente Prisma
+      - run: npm test # unit (jest), sin DB
+      - run: npm run build # nest build
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run test:run # vitest
+      - run: npm run build # next build
+
+  api-e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bpm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # global-setup-e2e.ts deriva el schema test_e2e y corre migrate deploy.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bpm_test?schema=public
+      JWT_SECRET: ci_test_secret
+      JWT_EXPIRES_IN: 1h
+      JWT_REFRESH_SECRET: ci_test_refresh
+      JWT_REFRESH_EXPIRES_IN: 7d
+      AUTH_INTERNAL_MODE: mock
+      MAIL_MODE: mock
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run test:e2e # integración (boota AppModule contra Postgres)

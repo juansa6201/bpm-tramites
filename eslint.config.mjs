@@ -15,6 +15,7 @@ export default tseslint.config(
       '**/.next/**',
       '**/out/**',
       '**/coverage/**',
+      '**/next-env.d.ts', // autogenerado por Next (gitignored)
     ],
   },
 
