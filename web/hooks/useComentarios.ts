@@ -1,0 +1,41 @@
+'use client';
+
+import * as React from 'react';
+import { listComentarios } from '@/lib/tramites-api';
+import type { Comentario } from '@/types/tramite';
+
+interface UseComentariosResult {
+  data: Comentario[];
+  loading: boolean;
+  error: boolean;
+  reload: () => void;
+}
+
+export function useComentarios(id: string): UseComentariosResult {
+  const [data, setData] = React.useState<Comentario[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(false);
+  const [reloadKey, setReloadKey] = React.useState(0);
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(false);
+    listComentarios(id, controller.signal)
+      .then((res) => {
+        if (controller.signal.aborted) return;
+        setData(res);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        setError(true);
+        setLoading(false);
+      });
+    return () => controller.abort();
+  }, [id, reloadKey]);
+
+  const reload = React.useCallback(() => setReloadKey((k) => k + 1), []);
+  return { data, loading, error, reload };
+}

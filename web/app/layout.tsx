@@ -4,6 +4,7 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { theme } from '../theme/theme';
+import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'BPM Trámites',
@@ -19,7 +20,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ThemeProvider theme={theme}>
             {/* CssBaseline: normaliza estilos del navegador segun el theme */}
             <CssBaseline />
-            {children}
+            {/* Providers globales de cliente (snackbars) */}
+            <Providers>{children}</Providers>
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>
