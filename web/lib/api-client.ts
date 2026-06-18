@@ -1,4 +1,4 @@
-import { loadToken } from './auth-storage';
+import { loadExternalToken, loadInternalToken } from './auth-storage';
 import { notify, triggerUnauthorized } from './notifier';
 import type { VariantType } from 'notistack';
 
@@ -16,9 +16,14 @@ export class ApiError extends Error {
   }
 }
 
+/** Portal cuyo token se adjunta. Cada portal persiste su JWT por separado. */
+export type AuthScope = 'interno' | 'externo';
+
 export interface RequestOptions {
-  /** Adjuntar el bearer token. Default true (poner false en el login). */
+  /** Adjuntar el bearer token. Default true (poner false en el login/registro). */
   auth?: boolean;
+  /** Qué token adjuntar (interno/externo). Default 'interno'. */
+  scope?: AuthScope;
   /** Mostrar snackbar automático ante error. Default true. */
   notifyOnError?: boolean;
   signal?: AbortSignal;
@@ -27,6 +32,11 @@ export interface RequestOptions {
 // Cuerpo serializable. `unknown` (no Record<string,unknown>) para aceptar
 // interfaces nombradas, que no tienen index signature implícita.
 type JsonBody = unknown;
+
+function authHeaders(scope: AuthScope): Record<string, string> {
+  const token = scope === 'externo' ? loadExternalToken() : loadInternalToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 async function parseBody(res: Response): Promise<unknown> {
   if (res.status === 204) return null;
@@ -67,6 +77,8 @@ function defaultMessageFor(status: number): string {
       return 'Recurso no encontrado.';
     case 409:
       return 'Conflicto con el estado actual del recurso.';
+    case 413:
+      return 'El archivo supera el tamaño máximo permitido.';
     case 422:
       return 'No se pudo procesar la operación.';
     default:
@@ -79,20 +91,42 @@ function variantFor(status: number): VariantType {
   return status >= 400 && status < 500 ? 'warning' : 'error';
 }
 
+/** Falla de red: aborts se re-lanzan tal cual; el resto notifica y lanza ApiError(0). */
+function networkError(err: unknown, notifyOnError: boolean): never {
+  if (err instanceof DOMException && err.name === 'AbortError') throw err;
+  if (notifyOnError) notify('No se pudo conectar con el servidor.', 'error');
+  throw new ApiError(0, 'Network error');
+}
+
+/** Respuesta no-2xx: notifica/redirige según corresponda y lanza ApiError. */
+async function fail(res: Response, auth: boolean, notifyOnError: boolean): Promise<never> {
+  const payload = await parseBody(res);
+  const message = extractMessage(payload, res.status);
+
+  if (res.status === 401 && auth) {
+    // Sesión expirada en una request autenticada: el AuthProvider del portal
+    // activo limpia y redirige. Un 401 sin token (ej. login con credenciales
+    // inválidas) NO es sesión expirada: cae al notify genérico.
+    triggerUnauthorized();
+    if (notifyOnError) notify('Tu sesión expiró. Iniciá sesión de nuevo.', 'warning');
+  } else if (notifyOnError) {
+    notify(message, variantFor(res.status));
+  }
+
+  throw new ApiError(res.status, message, payload);
+}
+
 async function request<T>(
   method: string,
   path: string,
   body?: JsonBody,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { auth = true, notifyOnError = true, signal } = options;
+  const { auth = true, scope = 'interno', notifyOnError = true, signal } = options;
 
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (auth) {
-    const token = loadToken();
-    if (token) headers.Authorization = `Bearer ${token}`;
-  }
+  if (auth) Object.assign(headers, authHeaders(scope));
 
   let res: Response;
   try {
@@ -103,29 +137,51 @@ async function request<T>(
       signal,
     });
   } catch (err) {
-    // Aborts no son errores a notificar: los re-lanzamos tal cual.
-    if (err instanceof DOMException && err.name === 'AbortError') throw err;
-    if (notifyOnError) notify('No se pudo conectar con el servidor.', 'error');
-    throw new ApiError(0, 'Network error');
+    networkError(err, notifyOnError);
   }
 
-  const payload = await parseBody(res);
+  if (!res.ok) return fail(res, auth, notifyOnError);
+  return (await parseBody(res)) as T;
+}
 
-  if (res.ok) return payload as T;
+/** Sube un archivo (multipart/form-data). NO setea Content-Type: el browser pone el boundary. */
+async function upload<T>(
+  path: string,
+  formData: FormData,
+  options: RequestOptions = {},
+): Promise<T> {
+  const { auth = true, scope = 'interno', notifyOnError = true, signal } = options;
 
-  const message = extractMessage(payload, res.status);
+  const headers: Record<string, string> = {};
+  if (auth) Object.assign(headers, authHeaders(scope));
 
-  if (res.status === 401 && auth) {
-    // Sesión expirada en una request autenticada: el AuthProvider limpia y
-    // redirige. Un 401 de una request sin token (ej. login con email inexistente)
-    // NO es sesión expirada: cae al notify genérico con el message real del backend.
-    triggerUnauthorized();
-    if (notifyOnError) notify('Tu sesión expiró. Iniciá sesión de nuevo.', 'warning');
-  } else if (notifyOnError) {
-    notify(message, variantFor(res.status));
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { method: 'POST', headers, body: formData, signal });
+  } catch (err) {
+    networkError(err, notifyOnError);
   }
 
-  throw new ApiError(res.status, message, payload);
+  if (!res.ok) return fail(res, auth, notifyOnError);
+  return (await parseBody(res)) as T;
+}
+
+/** Descarga binaria: devuelve el Blob (el caller arma el filename para guardarlo). */
+async function download(path: string, options: RequestOptions = {}): Promise<Blob> {
+  const { auth = true, scope = 'interno', notifyOnError = true, signal } = options;
+
+  const headers: Record<string, string> = {};
+  if (auth) Object.assign(headers, authHeaders(scope));
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { method: 'GET', headers, signal });
+  } catch (err) {
+    networkError(err, notifyOnError);
+  }
+
+  if (!res.ok) return fail(res, auth, notifyOnError);
+  return res.blob();
 }
 
 export const apiClient = {
@@ -138,4 +194,6 @@ export const apiClient = {
     request<T>('PATCH', path, body, options),
   delete: <T>(path: string, options?: RequestOptions) =>
     request<T>('DELETE', path, undefined, options),
+  upload,
+  download,
 };

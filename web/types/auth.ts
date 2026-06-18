@@ -36,3 +36,41 @@ export interface InternalMeResponse {
   rol?: RolInterno;
   areaId?: string;
 }
+
+/**
+ * Usuario externo tal como lo guarda el front.
+ * `nombre` llega del login; /me puede no traerlo, por eso es opcional.
+ */
+export interface ExternalUser {
+  id: string;
+  email: string;
+  tipo: TipoUsuario;
+  nombre?: string;
+}
+
+/** Respuesta de POST /api/auth/external/login. */
+export interface ExternalLoginResponse {
+  accessToken: string;
+  usuario: {
+    id: string;
+    nombre: string;
+    email: string;
+    tipo: TipoUsuario;
+  };
+}
+
+/** Respuesta de GET /api/auth/me (externo). Puede no incluir nombre. */
+export interface ExternalMeResponse {
+  id: string;
+  email: string;
+  tipo: TipoUsuario;
+  nombre?: string;
+}
+
+/** Resultado de POST /api/auth/external/register (sin token: la cuenta nace pendiente). */
+export interface RegisterExternalResult {
+  id: string;
+  nombre: string;
+  email: string;
+  estado: string;
+}

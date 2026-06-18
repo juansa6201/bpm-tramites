@@ -4,22 +4,21 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
-import { useAuth } from '@/context/AuthContext';
-import { loadExternalToken } from '@/lib/auth-storage';
+import { useExternalAuth } from '@/context/ExternalAuthContext';
+import { loadInternalToken } from '@/lib/auth-storage';
 
 /**
- * Protección de ruta client-side: el token vive en el cliente, así que el
- * gate es acá (no en middleware SSR). Muestra un spinner mientras hidrata y
- * redirige al login si no hay sesión. Si el visitante tiene sesión EXTERNA
- * activa, lo manda a /externo en vez de obligarlo a loguearse como interno.
+ * Gate client-side del portal externo. Si no hay sesión externa redirige al
+ * login externo; pero si el visitante ya tiene sesión INTERNA activa, lo manda
+ * a /interno en vez de obligarlo a loguearse de nuevo como externo.
  */
-export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { status } = useAuth();
+export function ExternalAuthGuard({ children }: { children: React.ReactNode }) {
+  const { status } = useExternalAuth();
   const router = useRouter();
 
   React.useEffect(() => {
     if (status === 'unauthenticated') {
-      router.replace(loadExternalToken() ? '/externo' : '/interno/login');
+      router.replace(loadInternalToken() ? '/interno' : '/externo/login');
     }
   }, [status, router]);
 
