@@ -58,4 +58,9 @@ export class DocumentoTramite {
     }
     return this.props.visibilidad !== Visibilidad.INTERNA;
   }
+
+  /** ¿Lo subió este actor? (para permisos de borrado). */
+  fueSubidoPor(tipoUsuario: TipoUsuario, usuarioId: string): boolean {
+    return this.props.subidoPorTipo === tipoUsuario && this.props.subidoPorId === usuarioId;
+  }
 }
