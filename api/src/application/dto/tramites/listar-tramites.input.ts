@@ -11,6 +11,8 @@ export interface ListarTramitesFiltros {
   areaActualId?: string;
   usuarioAsignadoId?: string;
   usuarioExternoId?: string;
+  creadoDesde?: Date;
+  creadoHasta?: Date;
   page?: number;
   pageSize?: number;
 }

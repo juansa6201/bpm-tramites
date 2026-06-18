@@ -5,12 +5,15 @@ import { SecurityModule } from '../security/security.module';
 import { WorkflowStateMachine } from '../../domain/services/workflow-state-machine';
 import { UnitOfWork } from '../../application/ports/unit-of-work';
 import {
+  CLOCK,
   COMENTARIO_TRAMITE_REPOSITORY,
   MOVIMIENTO_TRAMITE_REPOSITORY,
   TIPO_TRAMITE_REPOSITORY,
   TRAMITE_REPOSITORY,
   UNIT_OF_WORK,
 } from '../../application/tokens';
+import { Clock } from '../../application/ports/clock.port';
+import { SystemClock } from '../../infrastructure/clock/system-clock';
 import { TipoTramiteRepository } from '../../domain/repositories/tipo-tramite.repository';
 import { TramiteRepository } from '../../domain/repositories/tramite.repository';
 import { MovimientoTramiteRepository } from '../../domain/repositories/movimiento-tramite.repository';
@@ -97,16 +100,21 @@ const WORKFLOW_USE_CASES: WorkflowUseCaseCtor[] = [
       useFactory: (prisma: PrismaService) => new PrismaMovimientoTramiteRepository(prisma),
       inject: [PrismaService],
     },
+    { provide: CLOCK, useClass: SystemClock },
     {
       provide: ListarTramitesUseCase,
-      useFactory: (tramites: TramiteRepository) => new ListarTramitesUseCase(tramites),
-      inject: [TRAMITE_REPOSITORY],
+      useFactory: (tramites: TramiteRepository, tipos: TipoTramiteRepository, clock: Clock) =>
+        new ListarTramitesUseCase(tramites, tipos, clock),
+      inject: [TRAMITE_REPOSITORY, TIPO_TRAMITE_REPOSITORY, CLOCK],
     },
     {
       provide: VerTramiteUseCase,
-      useFactory: (tramites: TramiteRepository, movimientos: MovimientoTramiteRepository) =>
-        new VerTramiteUseCase(tramites, movimientos),
-      inject: [TRAMITE_REPOSITORY, MOVIMIENTO_TRAMITE_REPOSITORY],
+      useFactory: (
+        tramites: TramiteRepository,
+        movimientos: MovimientoTramiteRepository,
+        sm: WorkflowStateMachine,
+      ) => new VerTramiteUseCase(tramites, movimientos, sm),
+      inject: [TRAMITE_REPOSITORY, MOVIMIENTO_TRAMITE_REPOSITORY, WorkflowStateMachine],
     },
     {
       provide: EditarTramiteUseCase,

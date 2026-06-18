@@ -1,9 +1,10 @@
 import { TramiteRepository } from '../../../domain/repositories/tramite.repository';
 import { MovimientoTramiteRepository } from '../../../domain/repositories/movimiento-tramite.repository';
+import { WorkflowStateMachine } from '../../../domain/services/workflow-state-machine';
 import { VerTramiteInput } from '../../dto/tramites/ver-tramite.input';
 import { TramiteDetalleView, toTramiteDetalleView } from '../../dto/tramites/tramite.view';
 import { TramiteNoEncontradoError } from '../../../domain/tramites/errors/tramite.errors';
-import { autorizarVisibilidad } from './workflow-helpers';
+import { autorizarVisibilidad, rolDe } from './workflow-helpers';
 
 /**
  * Devuelve el detalle de un trámite con su timeline de movimientos embebida.
@@ -16,6 +17,7 @@ export class VerTramiteUseCase {
   constructor(
     private readonly tramites: TramiteRepository,
     private readonly movimientos: MovimientoTramiteRepository,
+    private readonly stateMachine: WorkflowStateMachine,
   ) {}
 
   async execute(input: VerTramiteInput): Promise<TramiteDetalleView> {
@@ -25,6 +27,13 @@ export class VerTramiteUseCase {
     autorizarVisibilidad(tramite, input.actor);
 
     const movimientos = await this.movimientos.listByTramite(tramite.id);
-    return toTramiteDetalleView(tramite, movimientos);
+    // Acciones disponibles para ESTE actor en el estado actual (guía de UI).
+    const accionesPermitidas = this.stateMachine.accionesPermitidas({
+      origen: tramite.origen,
+      estadoActual: tramite.estado,
+      tipoUsuario: input.actor.tipo,
+      rolUsuario: rolDe(input.actor),
+    });
+    return toTramiteDetalleView(tramite, movimientos, accionesPermitidas);
   }
 }

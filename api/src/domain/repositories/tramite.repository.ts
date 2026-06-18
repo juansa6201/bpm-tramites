@@ -28,6 +28,14 @@ export interface TramiteFilters {
   areaActualId?: string;
   usuarioAsignadoId?: string;
   usuarioExternoId?: string;
+  /**
+   * Rango sobre fechaCreacion: creadoDesde aplica `>=` y creadoHasta `<=` sobre
+   * el instante EXACTO recibido (no se normaliza a fin de día). Para incluir un
+   * día completo, el llamador debe pasar el fin de día en creadoHasta (el front
+   * manda el límite UTC 23:59:59.999).
+   */
+  creadoDesde?: Date;
+  creadoHasta?: Date;
   page?: number;
   pageSize?: number;
 }

@@ -45,6 +45,14 @@ export class PrismaTramiteRepository implements TramiteRepository {
       ...(filters.areaActualId ? { areaActualId: filters.areaActualId } : {}),
       ...(filters.usuarioAsignadoId ? { usuarioAsignadoId: filters.usuarioAsignadoId } : {}),
       ...(filters.usuarioExternoId ? { usuarioExternoId: filters.usuarioExternoId } : {}),
+      ...(filters.creadoDesde || filters.creadoHasta
+        ? {
+            fechaCreacion: {
+              ...(filters.creadoDesde ? { gte: filters.creadoDesde } : {}),
+              ...(filters.creadoHasta ? { lte: filters.creadoHasta } : {}),
+            },
+          }
+        : {}),
     };
 
     const [rows, total] = await Promise.all([
