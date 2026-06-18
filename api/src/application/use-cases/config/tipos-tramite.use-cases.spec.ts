@@ -1,4 +1,5 @@
 import { ListarTiposTramiteUseCase } from './listar-tipos-tramite.use-case';
+import { ListarTiposIniciablesExternoUseCase } from './listar-tipos-iniciables-externo.use-case';
 import { CrearTipoTramiteUseCase } from './crear-tipo-tramite.use-case';
 import { ActualizarTipoTramiteUseCase } from './actualizar-tipo-tramite.use-case';
 import {
@@ -154,5 +155,24 @@ describe('Config Tipos de trámite - autorización y validaciones', () => {
       id: 'tt1',
       data: expect.objectContaining({ slaHoras: 12, activo: false }),
     });
+  });
+});
+
+describe('ListarTiposIniciablesExternoUseCase', () => {
+  it('devuelve solo tipos activos con inicio externo, como vistas planas', async () => {
+    const repo = {
+      list: () =>
+        Promise.resolve([
+          tipo({ id: 'ok', codigo: 'ALTA', activo: true, permiteInicioExterno: true }),
+          tipo({ id: 'inactivo', activo: false, permiteInicioExterno: true }),
+          tipo({ id: 'solo-interno', activo: true, permiteInicioExterno: false }),
+        ]),
+    } as unknown as TipoTramiteRepository;
+
+    const res = await new ListarTiposIniciablesExternoUseCase(repo).execute();
+
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ id: 'ok', codigo: 'ALTA', permiteInicioExterno: true });
+    expect(res[0]).not.toHaveProperty('props');
   });
 });
