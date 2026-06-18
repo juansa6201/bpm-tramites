@@ -16,9 +16,13 @@
     "@mui/icons-material": "^6.1.6",
     "@mui/material": "^6.1.6",
     "@mui/material-nextjs": "^6.1.6",
+    "@mui/x-charts": "^7.29.1",
+    "formik": "^2.4.9",
     "next": "^15.0.3",
+    "notistack": "^3.0.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
