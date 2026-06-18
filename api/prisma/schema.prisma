@@ -204,6 +204,10 @@ model Tramite {
   fechaActualizacion DateTime  @updatedAt
   fechaCierre        DateTime?
 
+  // Soft-delete: null = activo. Se conserva la fila (auditoría) pero se oculta
+  // en las lecturas. El BORRADOR se borra de verdad (hard delete), no se marca.
+  eliminadoEn DateTime?
+
   // Composición del agregado
   movimientos MovimientoTramite[]
   documentos  DocumentoTramite[]

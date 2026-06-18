@@ -1,4 +1,20 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { ListarTramitesUseCase } from '../../application/use-cases/tramites/listar-tramites.use-case';
+import { VerTramiteUseCase } from '../../application/use-cases/tramites/ver-tramite.use-case';
+import { EditarTramiteUseCase } from '../../application/use-cases/tramites/editar-tramite.use-case';
+import { EliminarTramiteUseCase } from '../../application/use-cases/tramites/eliminar-tramite.use-case';
 import { IngresarTramiteUseCase } from '../../application/use-cases/tramites/ingresar-tramite.use-case';
 import { TomarTramiteUseCase } from '../../application/use-cases/tramites/tomar-tramite.use-case';
 import { AsignarTramiteUseCase } from '../../application/use-cases/tramites/asignar-tramite.use-case';
@@ -19,8 +35,13 @@ import { CurrentUser, CurrentUserData } from '../decorators/current-user.decorat
 import { ComentarioOpcionalRequest, ComentarioRequeridoRequest } from './dto/comentario.request';
 import { AsignarRequest } from './dto/asignar.request';
 import { DerivarRequest } from './dto/derivar.request';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CrearTramiteRequest } from './dto/crear-tramite.request';
+import { ListarTramitesQuery } from './dto/listar-tramites.query';
+import { EditarTramiteRequest } from './dto/editar-tramite.request';
 
+@ApiTags('tramites')
+@ApiBearerAuth()
 @Controller('tramites')
 @UseGuards(WorkflowAuthGuard)
 export class TramitesController {
@@ -38,6 +59,10 @@ export class TramitesController {
     private readonly cerrarUC: CerrarTramiteUseCase,
     private readonly cancelarUC: CancelarTramiteUseCase,
     private readonly crearUC: CrearTramiteUseCase,
+    private readonly listarUC: ListarTramitesUseCase,
+    private readonly verUC: VerTramiteUseCase,
+    private readonly editarUC: EditarTramiteUseCase,
+    private readonly eliminarUC: EliminarTramiteUseCase,
   ) {}
 
   private actor(user: CurrentUserData): Actor {
@@ -59,6 +84,40 @@ export class TramitesController {
       usuarioExternoId: body.usuarioExternoId ?? null,
       areaActualId: body.areaActualId ?? null,
     });
+  }
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  listar(@Query() query: ListarTramitesQuery, @CurrentUser() u: CurrentUserData) {
+    return this.listarUC.execute({ actor: this.actor(u), filtros: query });
+  }
+
+  @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  ver(@Param('id') id: string, @CurrentUser() u: CurrentUserData) {
+    return this.verUC.execute({ tramiteId: id, actor: this.actor(u) });
+  }
+
+  @Put(':id')
+  @HttpCode(HttpStatus.OK)
+  editar(
+    @Param('id') id: string,
+    @Body() body: EditarTramiteRequest,
+    @CurrentUser() u: CurrentUserData,
+  ) {
+    return this.editarUC.execute({
+      tramiteId: id,
+      actor: this.actor(u),
+      titulo: body.titulo,
+      descripcion: body.descripcion,
+      prioridad: body.prioridad,
+    });
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async eliminar(@Param('id') id: string, @CurrentUser() u: CurrentUserData) {
+    await this.eliminarUC.execute({ tramiteId: id, actor: this.actor(u) });
   }
 
   @Post(':id/ingresar')

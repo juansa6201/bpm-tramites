@@ -22,12 +22,14 @@ export class PrismaTramiteRepository implements TramiteRepository {
   constructor(private readonly prisma: PrismaClientLike) {}
 
   async findById(id: string): Promise<Tramite | null> {
-    const row = await this.prisma.tramite.findUnique({ where: { id } });
+    // Los soft-deleted se tratan como inexistentes en todo el sistema.
+    const row = await this.prisma.tramite.findFirst({ where: { id, eliminadoEn: null } });
     return row ? TramiteMapper.toDomain(row) : null;
   }
 
   async findByNumero(numero: string): Promise<Tramite | null> {
-    const row = await this.prisma.tramite.findUnique({ where: { numero } });
+    // Mismo invariante que findById: los soft-deleted son inexistentes.
+    const row = await this.prisma.tramite.findFirst({ where: { numero, eliminadoEn: null } });
     return row ? TramiteMapper.toDomain(row) : null;
   }
 
@@ -36,6 +38,7 @@ export class PrismaTramiteRepository implements TramiteRepository {
     const pageSize = filters.pageSize && filters.pageSize > 0 ? filters.pageSize : 20;
 
     const where: Prisma.TramiteWhereInput = {
+      eliminadoEn: null, // nunca listar soft-deleted
       ...(filters.estado ? { estado: filters.estado as never } : {}),
       ...(filters.origen ? { origen: filters.origen as never } : {}),
       ...(filters.prioridad ? { prioridad: filters.prioridad as never } : {}),
@@ -86,12 +89,22 @@ export class PrismaTramiteRepository implements TramiteRepository {
 
   async ultimoNumeroConPrefijo(prefijo: string): Promise<string | null> {
     // El número es de ancho fijo con padding, así que orden lexicográfico = numérico.
+    // Incluye los soft-deleted a propósito: su número sigue ocupado (@unique).
     const row = await this.prisma.tramite.findFirst({
       where: { numero: { startsWith: prefijo } },
       orderBy: { numero: 'desc' },
       select: { numero: true },
     });
     return row?.numero ?? null;
+  }
+
+  async delete(id: string): Promise<void> {
+    // Hard delete; el cascade del schema borra movimientos/documentos/comentarios.
+    await this.prisma.tramite.delete({ where: { id } });
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await this.prisma.tramite.update({ where: { id }, data: { eliminadoEn: new Date() } });
   }
 
   /**
@@ -102,6 +115,8 @@ export class PrismaTramiteRepository implements TramiteRepository {
     const res = await this.prisma.tramite.updateMany({
       where: { id: tramite.id, version: tramite.version },
       data: {
+        titulo: tramite.titulo,
+        descripcion: tramite.descripcion,
         estado: tramite.estado as never,
         prioridad: tramite.prioridad as never,
         areaActualId: tramite.areaActualId,
