@@ -11,7 +11,8 @@ import type { MovimientoTramite } from '@/types/tramite';
 
 interface Props {
   movimientos: MovimientoTramite[];
-  areaNombre: (id: string | null) => string;
+  /** Resolver id→nombre de área. Si se omite (portal externo) no se muestran cambios de área. */
+  areaNombre?: (id: string | null) => string;
 }
 
 function autorTexto(tipo: string, id: string): string {
@@ -34,7 +35,7 @@ export function Timeline({ movimientos, areaNombre }: Props) {
       {movimientos.map((m, i) => {
         const last = i === movimientos.length - 1;
         const cambioArea =
-          m.areaNuevaId && m.areaNuevaId !== m.areaAnteriorId
+          areaNombre && m.areaNuevaId && m.areaNuevaId !== m.areaAnteriorId
             ? `${areaNombre(m.areaAnteriorId)} → ${areaNombre(m.areaNuevaId)}`
             : null;
         return (

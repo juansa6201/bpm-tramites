@@ -31,7 +31,8 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
 
 interface Props {
   tramite: TramiteDetalle;
-  areaNombre: (id: string | null) => string;
+  /** Resolver id→nombre de área. Si se omite (portal externo) no se muestra el área. */
+  areaNombre?: (id: string | null) => string;
 }
 
 export function TramiteDatos({ tramite, areaNombre }: Props) {
@@ -66,7 +67,7 @@ export function TramiteDatos({ tramite, areaNombre }: Props) {
           }}
         >
           <Campo label="Origen">{ORIGEN_LABEL[tramite.origen] ?? tramite.origen}</Campo>
-          <Campo label="Área actual">{areaNombre(tramite.areaActualId)}</Campo>
+          {areaNombre && <Campo label="Área actual">{areaNombre(tramite.areaActualId)}</Campo>}
           <Campo label="Creado">{formatDateTime(tramite.fechaCreacion)}</Campo>
           <Campo label="Última actualización">{formatDateTime(tramite.fechaActualizacion)}</Campo>
           {tramite.fechaCierre && (

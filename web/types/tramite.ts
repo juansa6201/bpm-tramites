@@ -89,6 +89,19 @@ export interface Comentario {
   fecha: string;
 }
 
+/** Documento adjunto (GET /tramites/:id/documentos). No expone storageKey. */
+export interface Documento {
+  id: string;
+  tramiteId: string;
+  nombreArchivo: string;
+  mimeType: string;
+  size: number;
+  visibilidad: Visibilidad;
+  subidoPorTipo: TipoUsuario;
+  subidoPorId: string;
+  fechaCarga: string;
+}
+
 /** Resultado de una acción de workflow (POST /tramites/:id/<accion>). */
 export interface TramiteTransicionResult {
   id: string;
