@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RegisterExternalUserUseCase } from '../../application/use-cases/auth/register-external-user.use-case';
 import { LoginExternalUserUseCase } from '../../application/use-cases/auth/login-external-user.use-case';
 import { LoginInternalMockUseCase } from '../../application/use-cases/auth/login-internal-mock.use-case';
@@ -9,6 +10,7 @@ import { ExternalAuthGuard } from '../guards/external-auth.guard';
 import { InternalAuthGuard } from '../guards/internal-auth.guard';
 import { CurrentUser, CurrentUserData } from '../decorators/current-user.decorator';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -44,6 +46,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @ApiBearerAuth()
   @UseGuards(ExternalAuthGuard)
   me(@CurrentUser() user: CurrentUserData) {
     return user;
@@ -59,6 +62,7 @@ export class AuthController {
   }
 
   @Get('internal/me')
+  @ApiBearerAuth()
   @UseGuards(InternalAuthGuard)
   internalMe(@CurrentUser() user: CurrentUserData) {
     return user;
